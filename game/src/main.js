@@ -39,6 +39,7 @@ buildWorld(scene, T, renderer);
 initEffects(scene, T);
 const vms = buildViewmodels(T, 0);
 for (const k in vms) camera.add(vms[k].root);
+camera.add(buildViewmodels.lamp);   // viewmodel fill light, rides the camera
 addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
   camera.aspect = innerWidth / innerHeight;

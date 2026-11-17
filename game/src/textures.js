@@ -185,14 +185,41 @@ function glow(inner = '255,240,200', outer = '255,170,60') {
 function blob() {
   const [c, g] = canvas(64, 64);
   const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  r.addColorStop(0, 'rgba(0,0,0,0.55)');
-  r.addColorStop(0.45, 'rgba(0,0,0,0.34)');
+  r.addColorStop(0, 'rgba(0,0,0,0.78)');
+  r.addColorStop(0.5, 'rgba(0,0,0,0.2)');
   r.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = r;
   g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+// Painted metal for the first-person weapon: dark parkerised steel with scuffs and edge wear.
+function gunmetal() {
+  const [c, g] = canvas(128, 128);
+  g.fillStyle = '#5b626b'; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 900; i++) {
+    const v = 74 + Math.floor(rand() * 40);
+    g.fillStyle = `rgba(${v},${v + 3},${v + 8},0.55)`;
+    g.fillRect(rand() * 128, rand() * 128, 1 + rand() * 2, 1 + rand() * 2);
+  }
+  // scuffs and worn edges
+  for (let i = 0; i < 26; i++) {
+    g.strokeStyle = `rgba(${150 + rand() * 60},${155 + rand() * 55},${165 + rand() * 50},${0.10 + rand() * 0.22})`;
+    g.lineWidth = 0.6 + rand() * 1.3;
+    g.beginPath();
+    const x = rand() * 128, y = rand() * 128;
+    g.moveTo(x, y); g.lineTo(x + randRange(-28, 28), y + randRange(-9, 9)); g.stroke();
+  }
+  // a few darker patches so the surface is not uniform
+  for (let i = 0; i < 9; i++) {
+    const x = rand() * 128, y = rand() * 128, r = 6 + rand() * 16;
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, 'rgba(18,21,26,0.30)'); rg.addColorStop(1, 'rgba(18,21,26,0)');
+    g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  return tex(c, 1, 1);
 }
 
 // Smoke puff: grey blob with a ragged edge.
@@ -269,6 +296,7 @@ export function makeTextures() {
     flash: glow('255,255,235', '255,200,90'),
     puff: puff(),
     blob: blob(),
+    gunmetal: gunmetal(),
     sky: skyGradient(),
   };
 }

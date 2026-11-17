@@ -8,9 +8,9 @@ const matCache = new Map();
 // One blob-shadow texture/material/geometry shared by every actor: a plane just above the floor.
 // The shadow map only covers the level's footprint, so actors get this fake contact shadow instead.
 let blobMat = null;
-const blobGeo = new THREE.PlaneGeometry(1.25, 1.25);
+const blobGeo = new THREE.PlaneGeometry(1.8, 1.8);
 function shadowPlane(T) {
-  if (!blobMat) blobMat = new THREE.MeshBasicMaterial({ map: T.blob, transparent: true, depthWrite: false, opacity: 0.85, fog: false });
+  if (!blobMat) blobMat = new THREE.MeshBasicMaterial({ map: T.blob, transparent: true, depthWrite: false, opacity: 1, fog: false });
   const m = new THREE.Mesh(blobGeo, blobMat);
   m.rotation.x = -Math.PI / 2;
   m.position.y = 0.012;   // under the bomb-site plates (0.02), above the ground (0)
@@ -33,11 +33,22 @@ export function part(parent, w, h, d, x, y, z, mat, shadow = true) {
 }
 
 const GUN_DARK = 0x23262b, GUN_MID = 0x3d4249, GUN_WOOD = 0x6b4a2c, GUN_STEEL = 0x8b929b;
+// Set once the textures exist: the gun's parkerised metal map. Until then the flat colours are used.
+let GUN_TEX = null;
+const gunMats = new Map();
+// One material per (colour, roughness) so the ten held guns share three materials, not thirty.
+function gunMat(color, rough, metal) {
+  const k = color + '|' + rough;
+  if (!gunMats.has(k)) gunMats.set(k, GUN_TEX
+    ? new THREE.MeshStandardMaterial({ map: GUN_TEX, color, roughness: rough, metalness: metal })
+    : flat(color, rough, metal));
+  return gunMats.get(k);
+}
 
 // Weapon built along -Z (muzzle at negative z), origin at the grip. Returns {g, muzzleZ}.
 function buildGun(id) {
   const g = new THREE.Group();
-  const dark = flat(GUN_DARK, 0.5, 0.5), mid = flat(GUN_MID, 0.55, 0.4), wood = flat(GUN_WOOD, 0.8, 0), steel = flat(GUN_STEEL, 0.35, 0.7);
+  const dark = gunMat(0xffffff, 0.55, 0.1), mid = gunMat(0xe6ebf1, 0.5, 0.1), wood = flat(GUN_WOOD, 0.8, 0), steel = gunMat(0xffffff, 0.3, 0.25);
   let muzzleZ = -0.4;
   if (id === 'knife') {
     part(g, 0.03, 0.05, 0.14, 0, 0, 0, flat(0x2a2a2a));
@@ -163,6 +174,12 @@ export function poseHumanoid(h, a, t) {
 // One group per weapon, parented to the camera. Arms are two skin/cloth boxes behind the gun.
 export function buildViewmodels(T, team) {
   const tm = TEAMS[team];
+  GUN_TEX = T.gunmetal;
+  // The world sun leaves the gun in shade; a short-range lamp riding the camera models the
+  // bounce light a real viewmodel would catch, so the metal reads instead of crushing to black.
+  const vmLight = new THREE.PointLight(0xfff0dc, 2.2, 3.2, 2);
+  vmLight.position.set(0.25, 0.1, 0.25);
+  buildViewmodels.lamp = vmLight;
   const out = {};
   for (const id of ['knife', 'pike', 'anvil', 'wasp', 'bulwark', 'halberd', 'longsight']) {
     const root = new THREE.Group();
