@@ -2,6 +2,7 @@
 // textured boxes, bombsite paint, lamps and props. Nothing here runs per frame.
 import * as THREE from 'three';
 import { BOXES, SITES } from './map.js';
+import { rand, TAU } from './util.js';
 
 const CELL_TEX = 2.4; // metres covered by one texture tile
 
@@ -89,6 +90,43 @@ export function buildWorld(scene, T, renderer) {
     );
     wall.position.set(s.x, 3, -39.95);
     scene.add(wall);
+  }
+
+  // Ground wear: grime patches and scorch marks. One canvas texture, a handful of planes; without
+  // them the floor reads as a clean tiled plane. Kept below the bomb-site plates (y 0.02).
+  const wear = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const g = cv.getContext('2d');
+    for (let i = 0; i < 26; i++) {
+      const x = 64 + (rand() - 0.5) * 78, y = 64 + (rand() - 0.5) * 78, r = 10 + rand() * 30;
+      const rg = g.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(28,22,16,0.5)');
+      rg.addColorStop(1, 'rgba(28,22,16,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+    }
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const wearMat = new THREE.MeshBasicMaterial({ map: wear, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  const wearGeo = new THREE.PlaneGeometry(1, 1);
+  const scorchMat = new THREE.MeshBasicMaterial({ map: T.puff, color: 0x120d0a, transparent: true, opacity: 0.6, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+  // [x, z, size, is scorch]
+  const WEAR = [
+    [-26, -16, 14, 0], [-30, -21, 9, 0], [-21, -12, 8, 0], [-26, -17, 5, 1],
+    [26, -16, 14, 0], [30, -20, 9, 0], [22, -11, 8, 0], [26, -15, 5, 1],
+    [-24, 6, 12, 0], [-24, 18, 10, 0], [24, 6, 12, 0], [24, 18, 10, 0],
+    [0, 12, 11, 0], [0, -6, 10, 0], [-10, 24, 8, 0], [10, 26, 8, 0],
+    [-4, 30, 7, 0], [5, 31, 7, 0], [-12, -28, 8, 0], [12, -28, 8, 0],
+    [16, 4, 4, 1], [-14, 2, 4, 1],
+  ];
+  for (const [x, z, s, scorch] of WEAR) {
+    const m = new THREE.Mesh(wearGeo, scorch ? scorchMat : wearMat);
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = rand() * TAU;
+    m.scale.set(s, s * (0.7 + rand() * 0.5), 1);
+    m.position.set(x, scorch ? 0.016 : 0.014, z);
+    scene.add(m);
   }
 
   // Lamp posts: a pole, a lit head and a glow sprite. Cosmetic, placed along the outer walls.
