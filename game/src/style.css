@@ -1,0 +1,64 @@
+/* style.css: HUD styling. Every element is created by hud.js; nothing here depends on the 3D scene. */
+[hidden]{display:none !important}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#1b1520;color:#fff4e0;font:13px/1.25 ui-monospace,Consolas,Menlo,monospace;user-select:none}
+canvas#view{position:fixed;inset:0;display:block;width:100%;height:100%}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+.panel{background:#150f1cb8;border:1px solid #ffffff2e;border-radius:3px}
+.hp{position:absolute;left:18px;bottom:18px;padding:9px 14px;min-width:240px}
+.hp .row{display:flex;gap:18px;align-items:baseline}
+.big{font-size:34px;font-weight:800;line-height:1}
+.lbl{font-size:10px;letter-spacing:2px;color:#d6c3b0}
+.bar{height:6px;background:#ffffff22;margin-top:6px}
+.bar i{display:block;height:100%;width:100%;background:#7be87b}
+.money{color:#ffd166;font-weight:700;margin-top:6px;font-size:16px}
+.ammo{position:absolute;right:18px;bottom:18px;padding:9px 14px;text-align:right;min-width:210px}
+.ammo .big b{font-size:16px;color:#d6c3b0;font-weight:600}
+.ammo .gun{letter-spacing:2px;font-size:11px;color:#ffc27a}
+.slots{font-size:10px;color:#ccb;margin-top:4px}
+.slots u{text-decoration:none;color:#ffd166}
+.top{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;gap:0}
+.top div{padding:5px 18px;text-align:center}
+.top .s{font-size:26px;font-weight:800;min-width:76px}
+.top .t{font-size:24px;font-weight:800;min-width:96px}
+.top .t small{display:block;font-size:10px;font-weight:400;letter-spacing:2px;color:#d6c3b0}
+.top .c0{color:#f39242}.top .c1{color:#45cfc6}
+.cross{position:absolute;left:50%;top:50%;width:0;height:0}
+.cross i{position:absolute;background:#eaffea;box-shadow:0 0 2px #000}
+.cross .h{width:7px;height:2px;top:-1px}.cross .v{width:2px;height:7px;left:-1px}
+.hitm{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;opacity:0;transition:opacity .25s}
+.hitm:before,.hitm:after{content:"";position:absolute;left:12px;top:-2px;width:2px;height:30px;background:#fff;transform:rotate(45deg)}
+.hitm:after{transform:rotate(-45deg)}
+.hitm.head:before,.hitm.head:after{background:#ff4040}
+.dmg{position:absolute;left:50%;top:50%;width:0;height:0}
+.dmg i{position:absolute;left:-90px;top:-170px;width:180px;height:44px;border-radius:50% 50% 0 0/100% 100% 0 0;background:radial-gradient(ellipse at 50% 100%,#ff2a2acc,#ff2a2a00 70%);opacity:0}
+.vig{position:absolute;inset:0;box-shadow:inset 0 0 120px #d4000000;transition:box-shadow .2s}
+.flashw{position:absolute;inset:0;background:#fff;opacity:0}
+.feed{position:absolute;right:14px;top:14px;text-align:right;display:flex;flex-direction:column;gap:3px}
+.feed div{padding:3px 8px;display:inline-block;align-self:flex-end}
+.radio{position:absolute;left:14px;top:196px;width:330px}
+.radio div{margin:2px 0;text-shadow:0 1px 2px #000;font-size:12px}
+.mini{position:absolute;left:14px;top:14px;width:172px;height:172px;border-radius:3px}
+#cmap{position:absolute;left:14px;top:14px;width:172px;height:172px;border:1px solid #ffffff44;border-radius:3px;background:#2a2234dd}
+.banner{position:absolute;left:0;right:0;top:20%;text-align:center;text-shadow:0 2px 8px #000}
+.banner h1{margin:0;font-size:44px;letter-spacing:8px}.banner p{margin:6px 0;font-size:15px;letter-spacing:3px;color:#ffe0b0}
+.prog{position:absolute;left:50%;bottom:30%;transform:translateX(-50%);width:300px;padding:8px 12px;text-align:center}
+.prog .bar{height:10px}.prog .bar i{background:#ffc247}
+.note{position:absolute;left:50%;bottom:34%;transform:translateX(-50%);text-shadow:0 1px 3px #000;font-size:14px;color:#ffe9b8}
+.bomb{position:absolute;top:70px;left:50%;transform:translateX(-50%);padding:4px 14px;color:#ff8a6a;letter-spacing:2px;font-weight:700}
+.buy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:660px;padding:16px 20px;pointer-events:auto;background:#150f1cdd}
+.buy h2{margin:0 0 10px;display:flex;justify-content:space-between;font-size:15px;letter-spacing:3px}
+.buy h2 span{color:#ffd166}
+.buy .g{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.buy .it{display:flex;gap:10px;padding:7px 9px;border:1px solid #ffffff2a;background:#ffffff0c;cursor:pointer}
+.buy .it:hover{border-color:#ffc27a}
+.buy .it.no{opacity:.45}.buy .it.own{border-color:#7be87b}
+.buy .k{width:20px;height:20px;background:#ffc27a;color:#150f1c;text-align:center;font-weight:800;line-height:20px}
+.buy .n{font-weight:700}.buy .d{font-size:10px;color:#cdbcb0}.buy .p{margin-left:auto;color:#ffd166}
+.buy .foot{margin-top:9px;font-size:11px;color:#d6c3b0}.buy .err{color:#ff8a6a}
+.score{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:600px;padding:14px}
+.score table{width:100%;border-collapse:collapse}.score th{font-size:10px;letter-spacing:2px;color:#d6c3b0;text-align:right}
+.score th:first-child,.score td:first-child{text-align:left}.score td{text-align:right;padding:3px 0}
+.score tr.me td{background:#ffffff18}.score tr.dead{opacity:.45}
+.help{position:absolute;right:14px;bottom:128px;text-align:right;font-size:10px;color:#e8d6c0aa;line-height:1.5}
+.scope{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#0000 0,#0000 26vh,#000 26.4vh)}
