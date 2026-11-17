@@ -25,7 +25,7 @@ export function initEffects(sc, textures) {
     scene.add(s); sparks.push(s);
   }
   for (let i = 0; i < MAX_PUFFS; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.puff, transparent: true, depthWrite: false, opacity: 0.8, color: 0xdcdce0 }));
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.puff, transparent: true, depthWrite: false, opacity: 0.5, color: 0xc8c8d0 }));
     s.visible = false; s.userData = { smoke: null, ox: 0, oy: 0, oz: 0, ph: 0, sz: 0 };
     scene.add(s); puffs.push(s);
   }
@@ -117,7 +117,7 @@ export function updateEffects(dt, time) {
       p.position.set(sm.x + u.ox * sm.r * 0.6 * grow, 0.8 + u.oy * grow, sm.z + u.oz * sm.r * 0.6 * grow);
       const sz = u.sz * (0.5 + 0.5 * grow);
       p.scale.set(sz, sz, 1);
-      p.material.opacity = 0.85 * fade;
+      p.material.opacity = 0.55 * fade;
       p.material.rotation = time * 0.05 * (k % 2 ? 1 : -1) + k;
     }
   }
