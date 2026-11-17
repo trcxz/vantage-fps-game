@@ -31,17 +31,23 @@ function brick() {
   const [c, g] = canvas(256, 256);
   g.fillStyle = '#d9cdb6'; // mortar
   g.fillRect(0, 0, 256, 256);
-  const palette = ['#b5603f', '#a4553a', '#c37049', '#9a4f37', '#bb7a54'];
+  // Wide palette plus a per-brick tint: some bricks are burnt dark, some sun-bleached, so the
+  // repeat of the tile stops reading as a grid.
+  const palette = ['#a8512f', '#8f4630', '#bd6a40', '#7e3b2a', '#c07a52', '#96503a', '#b8613d'];
   for (let row = 0; row < 8; row++) {
     const off = row % 2 ? 32 : 0;
     for (let col = -1; col < 4; col++) {
+      const x = col * 64 + off + 2, y = row * 32 + 2;
       g.fillStyle = palette[Math.floor(rand() * palette.length)];
-      g.fillRect(col * 64 + off + 2, row * 32 + 2, 60, 28);
+      g.fillRect(x, y, 60, 28);
+      const v = rand();
+      if (v < 0.25) { g.fillStyle = `rgba(26,13,8,${randRange(0.12, 0.34).toFixed(3)})`; g.fillRect(x, y, 60, 28); }
+      else if (v > 0.78) { g.fillStyle = `rgba(255,226,192,${randRange(0.08, 0.2).toFixed(3)})`; g.fillRect(x, y, 60, 28); }
       g.fillStyle = '#ffffff14';
-      g.fillRect(col * 64 + off + 2, row * 32 + 2, 60, 4);
+      g.fillRect(x, y, 60, 4);
     }
   }
-  grain(g, 256, 256, 900, '#4a2418', '#e2a37c');
+  grain(g, 256, 256, 1100, '#3d1c12', '#e8ac86');
   return tex(c);
 }
 
@@ -49,11 +55,14 @@ function concrete(base = '#aaa69c', seams = true) {
   const [c, g] = canvas(256, 256);
   g.fillStyle = base;
   g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 40; i++) {
-    g.fillStyle = `rgba(${rand() < 0.5 ? '60,55,50' : '230,225,215'},${randRange(0.03, 0.09)})`;
-    g.fillRect(rand() * 256, rand() * 256, randRange(20, 90), randRange(10, 60));
+  // Stains and bleached patches at a much wider value range than before: a flat mid-grey slab
+  // tiles visibly, a blotchy one does not.
+  for (let i = 0; i < 52; i++) {
+    const light = rand() < 0.42;
+    g.fillStyle = `rgba(${light ? '236,231,220' : '52,47,42'},${randRange(0.05, 0.2).toFixed(3)})`;
+    g.fillRect(rand() * 256, rand() * 256, randRange(24, 110), randRange(12, 70));
   }
-  grain(g, 256, 256, 1600, '#6d6a63', '#d6d2c8');
+  grain(g, 256, 256, 2200, '#5e5b55', '#e4e0d6');
   if (seams) {
     g.strokeStyle = '#5f5c55';
     g.lineWidth = 2;
