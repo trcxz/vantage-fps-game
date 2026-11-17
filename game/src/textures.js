@@ -172,6 +172,20 @@ function glow(inner = '255,240,200', outer = '255,170,60') {
   return t;
 }
 
+// Soft blob used as a fake contact shadow under actors: black core fading to nothing.
+function blob() {
+  const [c, g] = canvas(64, 64);
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(0,0,0,0.55)');
+  r.addColorStop(0.45, 'rgba(0,0,0,0.34)');
+  r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r;
+  g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 // Smoke puff: grey blob with a ragged edge.
 function puff() {
   const [c, g] = canvas(128, 128);
@@ -245,6 +259,7 @@ export function makeTextures() {
     glow: glow(),
     flash: glow('255,255,235', '255,200,90'),
     puff: puff(),
+    blob: blob(),
     sky: skyGradient(),
   };
 }
