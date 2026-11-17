@@ -244,11 +244,11 @@ function puff() {
 function skyGradient() {
   const [c, g] = canvas(16, 512);
   const r = g.createLinearGradient(0, 0, 0, 512);
-  r.addColorStop(0, '#3d5a9c');
-  r.addColorStop(0.35, '#8f7fb8');
-  r.addColorStop(0.55, '#f08fa0');
-  r.addColorStop(0.7, '#ffbb7a');
-  r.addColorStop(1, '#ffd9a0');
+  r.addColorStop(0, '#243050');
+  r.addColorStop(0.35, '#706494');
+  r.addColorStop(0.55, '#d07888');
+  r.addColorStop(0.7, '#e89a60');
+  r.addColorStop(1, '#e8b878');
   g.fillStyle = r;
   g.fillRect(0, 0, 16, 512);
   const img = g.getImageData(0, 0, 16, 512), px = img.data;
