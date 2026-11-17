@@ -189,8 +189,9 @@ function puff() {
 }
 
 // Dusk sky: deep blue overhead, rose, then a hot orange horizon. Painted top to bottom.
+// A +-3/255 dither is added per pixel: without it an 8x512 ramp stretched over the dome bands.
 function skyGradient() {
-  const [c, g] = canvas(8, 512);
+  const [c, g] = canvas(16, 512);
   const r = g.createLinearGradient(0, 0, 0, 512);
   r.addColorStop(0, '#3d5a9c');
   r.addColorStop(0.35, '#8f7fb8');
@@ -198,9 +199,16 @@ function skyGradient() {
   r.addColorStop(0.7, '#ffbb7a');
   r.addColorStop(1, '#ffd9a0');
   g.fillStyle = r;
-  g.fillRect(0, 0, 8, 512);
+  g.fillRect(0, 0, 16, 512);
+  const img = g.getImageData(0, 0, 16, 512), px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const n = (rand() - 0.5) * 6;
+    px[i] += n; px[i + 1] += n; px[i + 2] += n;
+  }
+  g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.LinearFilter;
   return t;
 }
 
