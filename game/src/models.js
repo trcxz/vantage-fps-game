@@ -5,6 +5,17 @@ import { nameTagTexture } from './textures.js';
 
 const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 const matCache = new Map();
+// One blob-shadow texture/material/geometry shared by every actor: a plane just above the floor.
+// The shadow map only covers the level's footprint, so actors get this fake contact shadow instead.
+let blobMat = null;
+const blobGeo = new THREE.PlaneGeometry(1.25, 1.25);
+function shadowPlane(T) {
+  if (!blobMat) blobMat = new THREE.MeshBasicMaterial({ map: T.blob, transparent: true, depthWrite: false, opacity: 0.85, fog: false });
+  const m = new THREE.Mesh(blobGeo, blobMat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.012;   // under the bomb-site plates (0.02), above the ground (0)
+  return m;
+}
 export function flat(color, rough = 0.7, metal = 0.1) {
   const k = color + '|' + rough + '|' + metal;
   if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal }));
@@ -117,7 +128,9 @@ export function buildHumanoid(team, name, T) {
   tag.position.set(0, 2.25, 0);
   tag.renderOrder = 10;
   root.add(tag);
-  return { root, body, legL, legR, armL, armR, gunHolder, flash, tag, gunId: '' };
+  const shadow = shadowPlane(T);
+  root.add(shadow);
+  return { root, body, legL, legR, armL, armR, gunHolder, flash, tag, shadow, gunId: '' };
 }
 
 // Swap the gun a humanoid holds; does nothing while the weapon id is unchanged.
@@ -140,7 +153,9 @@ export function poseHumanoid(h, a, t) {
   h.body.rotation.x = a.crouch ? 0.15 : 0;
   h.root.position.set(a.x, a.y, a.z);
   h.root.rotation.y = a.yaw;
-  if (!a.alive) { h.root.rotation.x = -1.45; h.root.position.y = a.y + 0.2; h.tag.visible = false; }
+  // Death topples the body group, not the root, so the shadow blob stays flat on the floor.
+  if (!a.alive) { h.body.rotation.x = -1.45; h.body.position.y = 0.2; h.tag.visible = false; }
+  else h.body.rotation.x = 0;
 }
 
 // ---- first-person viewmodel ----
