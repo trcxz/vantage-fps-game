@@ -8,7 +8,7 @@ const matCache = new Map();
 // One blob-shadow texture/material/geometry shared by every actor: a plane just above the floor.
 // The shadow map only covers the level's footprint, so actors get this fake contact shadow instead.
 let blobMat = null;
-const blobGeo = new THREE.PlaneGeometry(1.8, 1.8);
+const blobGeo = new THREE.PlaneGeometry(1.5, 1.5);
 function shadowPlane(T) {
   if (!blobMat) blobMat = new THREE.MeshBasicMaterial({ map: T.blob, transparent: true, depthWrite: false, opacity: 1, fog: false });
   const m = new THREE.Mesh(blobGeo, blobMat);

@@ -185,8 +185,9 @@ function glow(inner = '255,240,200', outer = '255,170,60') {
 function blob() {
   const [c, g] = canvas(64, 64);
   const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  r.addColorStop(0, 'rgba(0,0,0,0.78)');
-  r.addColorStop(0.5, 'rgba(0,0,0,0.2)');
+  r.addColorStop(0, 'rgba(0,0,0,0.92)');
+  r.addColorStop(0.34, 'rgba(0,0,0,0.72)');
+  r.addColorStop(0.62, 'rgba(0,0,0,0.26)');
   r.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = r;
   g.fillRect(0, 0, 64, 64);
