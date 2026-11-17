@@ -19,10 +19,11 @@ function tileUVs(geo, w, h, d) {
 
 export function buildWorld(scene, T, renderer) {
   scene.background = new THREE.Color(0xf2b184);
-  scene.fog = new THREE.Fog(0xe9a583, 38, 120);
+  scene.fog = new THREE.Fog(0xf0b184, 38, 120);   // matches the sky's horizon band so the far wall melts into it
 
-  // Lights: low warm sun, cool sky fill from above.
-  scene.add(new THREE.HemisphereLight(0xa9b8ff, 0x8a6a58, 1.55));
+  // Lights: low warm sun, cool sky fill from above. The fill is kept low on purpose: the sun does
+  // the modelling, so forms and faces read instead of flattening.
+  scene.add(new THREE.HemisphereLight(0xa9b8ff, 0x8a6a58, 1.15));
   const sun = new THREE.DirectionalLight(0xffd0a0, 2.9);
   sun.position.set(-48, 26, 38);
   sun.castShadow = true;
