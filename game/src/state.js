@@ -15,7 +15,6 @@ export const G = {
   atk: 0,             // team index that attacks this half
   plan: ['', ''],     // each team's plan name this round
   planSite: 'A',      // site the attackers are heading for
-  contact: { site: '', t: -99 },   // last place the defenders met attackers
 
   actors: [],         // player first, then bots (see round.js makeActor)
   player: null,
@@ -35,13 +34,19 @@ export const G = {
 
   // What only the local player's screen needs.
   ui: {
-    buy: false, scores: false, hitT: -9, hitHead: false, killT: -9,
+    buy: false, scores: false, hitT: -9, hitHead: false,
     dmg: [{ ang: 0, t: -9 }, { ang: 0, t: -9 }, { ang: 0, t: -9 }], dmgI: 0,
-    hurtT: -9, cam: 'fp', spectate: null, note: '', noteT: -9,
+    hurtT: -9, note: '', noteT: -9,
+    free: null,       // free camera {x, y, z, pitch, yaw, fov} for the overview scene, else null
   },
 };
 
-export const isAttacker = (a) => a.team === G.atk;
+// Plant or defuse progress (0..1) of actor `a`; 0 when it is not the one using the bomb.
+export function bombProgress(a) {
+  const B = G.bomb;
+  if (B.user !== a) return 0;
+  return B.state === 'carried' ? B.plantP : B.state === 'planted' ? B.defuseP : 0;
+}
 
 export function pushFeed(killer, victim, weapon, head) {
   G.feed.push({ k: killer.name, kt: killer.team, v: victim.name, vt: victim.team, w: weapon, head, t: G.time });

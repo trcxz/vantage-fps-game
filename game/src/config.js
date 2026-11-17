@@ -1,7 +1,6 @@
 // config.js: every tunable number and table of VANTAGE lives here, so balance is one file.
 // Nothing in this module has behaviour; it is data only.
 
-export const CELL = 2.4;          // metres per map cell
 export const STEP = 1 / 60;       // fixed simulation step (seconds)
 
 // Two squads with a fixed identity; which one attacks swaps at half time (see round.js).
@@ -68,6 +67,9 @@ export const WEAPONS = {
     range: 160, falloff: 999, speed: 0.82, reward: 100, tone: 0.42,
   },
 };
+// Leg shots: a body hit below LEG_ZONE of the target's height does LEG_MULT of the damage.
+export const LEG_ZONE = 0.45, LEG_MULT = 0.75;
+export const TAG_RANGE = 25;      // metres: enemy nametags are hidden beyond this
 
 // Grenades: fuse in seconds, radius in metres.
 export const NADES = {

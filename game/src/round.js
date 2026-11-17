@@ -11,7 +11,7 @@ export const roundHooks = { planted: () => {}, defused: () => {}, exploded: () =
 const WINS_NEEDED = 7;
 const HALF_AT = 6; // rounds played before sides swap
 
-export function createActors() {
+function createActors() {
   G.actors = [];
   for (let t = 0; t < 2; t++) for (let s = 0; s < 5; s++) {
     const a = makeActor(t, s, t === 0 && s === 0);
@@ -20,7 +20,7 @@ export function createActors() {
   }
   G.player = G.actors[0];
 }
-export const teamOf = (t) => G.actors.filter((a) => a.team === t);
+const teamOf = (t) => G.actors.filter((a) => a.team === t);
 
 // ---- buying ----
 // Returns '' on success or the reason it failed (shown in the buy menu).
@@ -79,7 +79,6 @@ function assignPlans() {
   G.plan[G.atk] = atkPlan; G.plan[1 - G.atk] = defPlan;
   G.planSite = atkPlan === 'rush B' ? 'B' : atkPlan === 'rush A' ? 'A' : rand() < 0.5 ? 'A' : 'B';
   const atk = teamOf(G.atk).filter((a) => !a.isPlayer), def = teamOf(1 - G.atk).filter((a) => !a.isPlayer);
-  const ai = (i) => atk[i % atk.length];
   atk.forEach((a, i) => {
     let key;
     if (atkPlan === 'split') key = i % 2 ? 'Beast' : 'Awest';
@@ -95,8 +94,7 @@ function assignPlans() {
     const hold = D_HOLD[mix[i % 5]], [id, yaw] = hold[i % hold.length];
     setRoute(a, ['c3', id], yaw, defPlan === 'aggressive' ? 3 : 0);
   });
-  // Teammates of the player on the attack side get the same plans through `atk`; the player picks his own.
-  return ai;
+  // Bot teammates of the player get their routes from the same plan; the player picks his own.
 }
 
 // Bots reposition after bomb events: attackers on the site guard the bomb; defenders retake.
@@ -113,11 +111,10 @@ function retakePlan() {
 }
 
 // ---- round lifecycle ----
-export function startRound() {
+function startRound() {
   G.phase = 'freeze'; G.phaseT = ROUND.freeze; G.elapsed = 0;
   G.grenades.length = 0; G.smokes.length = 0;
   G.bomb = { state: 'carried', carrier: null, x: 0, z: 0, site: '', timer: 0, plantP: 0, defuseP: 0, user: null };
-  G.contact = { site: '', t: -99 };
   const spots = { [G.atk]: SPAWN.south, [1 - G.atk]: SPAWN.north };
   for (const t of [0, 1]) teamOf(t).forEach((a, i) => {
     const keep = a.alive && G.round > 1 && G.round !== HALF_AT + 1 && a.keepGear;
@@ -126,7 +123,7 @@ export function startRound() {
     const [x, z] = spots[t][i];
     a.x = x; a.z = z; a.y = 0; a.vx = a.vy = a.vz = 0; a.crouch = false; a.reloadT = 0; a.cool = 0.3; a.flashT = 0; a.bloom = 0;
     a.yaw = t === G.atk ? 0 : Math.PI; a.pitch = 0; a.cur = bestWeapon(a); a.keepGear = false;
-    if (a.bot) { a.bot.target = null; a.bot.lastSeen = null; a.bot.lookT = 0; }
+    if (a.bot) { a.bot.target = null; a.bot.lastSeen.t = -99; a.bot.lookT = 0; }
     if (a.mag[a.cur] === undefined) a.cur = 'pike';
   });
   for (const a of G.actors) {
@@ -175,7 +172,12 @@ function nextRound() {
   startRound();
 }
 
-const alive = (t) => G.actors.filter((a) => a.team === t && a.alive).length;
+// Living members of team t (counted in place: this runs every step).
+function alive(t) {
+  let n = 0;
+  for (const a of G.actors) if (a.team === t && a.alive) n++;
+  return n;
+}
 
 // ---- bomb ----
 function stepBomb(dt) {
@@ -200,19 +202,19 @@ function stepBomb(dt) {
       }
     } else B.plantP = Math.max(0, B.plantP - dt * 2);
   } else if (B.state === 'dropped') {
-    for (const a of teamOf(G.atk)) if (a.alive && Math.hypot(a.x - B.x, a.z - B.z) < 1.2) { B.state = 'carried'; B.carrier = a; a.hasBomb = true; pushRadio(a.team, a.name, 'Got the bomb.'); break; }
+    for (const a of G.actors) if (a.team === G.atk && a.alive && Math.hypot(a.x - B.x, a.z - B.z) < 1.2) { B.state = 'carried'; B.carrier = a; a.hasBomb = true; pushRadio(a.team, a.name, 'Got the bomb.'); break; }
     if (B.state === 'dropped' && G.phase === 'live') {
       // a living attacking bot goes to fetch it
-      const f = teamOf(G.atk).find((a) => a.bot && a.alive && !a.fetch);
+      const f = G.actors.find((a) => a.team === G.atk && a.bot && a.alive && !a.fetch);
       if (f) { f.fetch = true; const n = NODES[nearestNode(B.x, B.z)]; setRoute(f, [n.id], 0, 0); }
     }
   } else if (B.state === 'planted') {
     B.timer -= dt;
     // defuse: nearest defender with `use` pressed within 1.6 m
-    const d = teamOf(1 - G.atk).find((a) => a.alive && a.use && Math.hypot(a.x - B.x, a.z - B.z) < 1.8 && Math.hypot(a.vx, a.vz) < 0.8);
+    const d = G.actors.find((a) => a.team !== G.atk && a.alive && a.use && Math.hypot(a.x - B.x, a.z - B.z) < 1.8 && Math.hypot(a.vx, a.vz) < 0.8);
     if (d) {
       B.user = d; B.defuseP += dt / (d.kit ? ROUND.defuseKit : ROUND.defuse);
-      if (B.defuseP >= 1) { B.state = 'defused'; G.phase = 'planted'; roundHooks.defused(); d.money += 0; endRound(1 - G.atk, 'Bomb defused'); }
+      if (B.defuseP >= 1) { B.state = 'defused'; G.phase = 'planted'; roundHooks.defused(); endRound(1 - G.atk, 'Bomb defused'); }
     } else { B.defuseP = Math.max(0, B.defuseP - dt * 0.5); B.user = null; }
     if (B.timer <= 0 && B.state === 'planted') { B.state = 'exploded'; roundHooks.exploded(B.x, B.z); endRound(G.atk, 'Bomb detonated'); }
   }
@@ -222,11 +224,11 @@ function stepBomb(dt) {
 function botObjectives() {
   const B = G.bomb;
   if (B.state !== 'planted') return;
-  for (const a of teamOf(1 - G.atk)) {
-    if (!a.bot || !a.alive) continue;
+  for (const a of G.actors) {
+    if (a.team === G.atk || !a.bot || !a.alive) continue;
     const d = Math.hypot(a.x - B.x, a.z - B.z);
     // only commit once the site looks safe (no enemy seen for 1.5 s) or time is short
-    const safe = !a.bot.target && (!a.bot.lastSeen || G.time - a.bot.lastSeen.t > 1.5);
+    const safe = !a.bot.target && G.time - a.bot.lastSeen.t > 1.5;
     a.use = d < 1.7 && (safe || B.timer < 9);
     if (d < 1.7 && a.use) { a.bot.goals = []; a.bot.path = []; }
   }

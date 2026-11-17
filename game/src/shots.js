@@ -1,9 +1,9 @@
 // shots.js: deterministic screenshot scenes (?shot=cover|buy|plant|wide). Each one poses the real
 // match state (actors, bomb, smoke, HUD data) and main.js then renders it through the normal code
 // path with the simulation frozen. Nothing here draws anything itself.
-import { G, pushFeed, pushRadio, setBanner } from './state.js';
+import { G, pushFeed, pushRadio } from './state.js';
 import { yawTo } from './util.js';
-import { giveWeapon, selectWeapon } from './actors.js';
+import { giveWeapon } from './actors.js';
 import { seedRandom } from './util.js';
 
 // Place actor i at (x,z) looking at (lx,lz).

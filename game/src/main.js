@@ -1,8 +1,8 @@
 // main.js: entry point. Creates the renderer and scene, wires input, runs the fixed-step
 // simulation (60 Hz, no rendering inside it) and renders once per animation frame.
 import * as THREE from 'three';
-import { G, note } from './state.js';
-import { STEP, SHOP, TEAMS, WEAPONS, NADES, NADE_ORDER, MOVE } from './config.js';
+import { G, note, bombProgress } from './state.js';
+import { STEP, SHOP, WEAPONS, NADE_ORDER, TAG_RANGE } from './config.js';
 import { clamp } from './util.js';
 import { makeTextures } from './textures.js';
 import { buildWorld } from './world.js';
@@ -134,7 +134,8 @@ hooks.shot = (a, tx, ty, tz, victim, first) => {
     G.noise[a.team].x = a.x; G.noise[a.team].z = a.z; G.noise[a.team].t = G.time;
     a.flashShow = 0.06; a.spotted = G.time + 1.5;
     const d = Math.hypot(a.x - p.x, a.z - p.z);
-    snd.sfxShot(a.cur, w.tone, a.isPlayer ? 0 : d, a.isPlayer ? 0 : clamp(Math.sin(Math.atan2(a.x - p.x, p.z - a.z) - p.yaw + Math.PI) * 0.0 + Math.sin(Math.atan2(a.x - p.x, -(a.z - p.z)) + p.yaw), -1, 1));
+    // pan: sine of the shooter's bearing relative to where the player looks
+    snd.sfxShot(a.cur, w.tone, a.isPlayer ? 0 : d, a.isPlayer ? 0 : Math.sin(Math.atan2(a.x - p.x, -(a.z - p.z)) + p.yaw));
   }
 };
 hooks.hit = (target, attacker, head, fx, fz) => {
@@ -145,7 +146,7 @@ hooks.hit = (target, attacker, head, fx, fz) => {
     G.ui.hurtT = G.time; snd.sfxHurt();
   }
 };
-hooks.died = (v, k) => { if (v === p) { p.scope = false; G.ui.buy = false; } else if (k === p) G.ui.killT = G.time; };
+hooks.died = (v) => { if (v === p) { p.scope = false; G.ui.buy = false; } };
 hooks.reload = (a) => { if (a === p) snd.sfxReload(); };
 hooks.empty = (a) => { if (a === p) snd.sfxEmpty(); };
 nadeHooks.boom = (kind, x, y, z) => {
@@ -165,7 +166,6 @@ function simStep(dt) {
   const w = curW(p);
   if (p.alive && !G.ui.buy && (clicked || (mouseDown && w.auto)) && fire(p)) vmKick = 1;
   clicked = false;
-  if (p.cool > 0 || !mouseDown) clicked = false;
   stepPlayer(p, keys, dt);
   for (const a of G.actors) {
     if (a.bot) stepBot(a, dt);
@@ -179,7 +179,6 @@ function simStep(dt) {
 }
 
 // ---- render-side sync ----
-const camPos = new THREE.Vector3();
 function syncView(dt, time) {
   const free = G.ui.free;
   if (free) {
@@ -202,7 +201,9 @@ function syncView(dt, time) {
   const vm = vms[p.cur];
   if (vm) {
     const reload = p.reloadT > 0 ? Math.sin(Math.min(1, 1 - p.reloadT / wdef.reload) * Math.PI) : 0;
-    const raise = p.switchT > 0 ? p.switchT / 0.3 : 0;
+    // The gun drops out of view while it is being raised after a switch, and while the hands
+    // are busy planting or defusing.
+    const raise = bombProgress(p) > 0 ? 1 : p.switchT > 0 ? p.switchT / 0.3 : 0;
     vm.root.position.set(0.17 + Math.sin(bob) * 0.012 * sp, -0.19 - reload * 0.25 - raise * 0.3 - Math.abs(Math.cos(bob)) * 0.01 * sp, -0.4 + vmKick * 0.06);
     vm.root.rotation.set(vmKick * 0.12 + reload * 0.5, 0.04 - reload * 0.3, reload * 0.4);
     vm.flash.visible = p.flashShow > 0;
@@ -215,8 +216,8 @@ function syncView(dt, time) {
     setHeldGun(m, a.cur);
     poseHumanoid(m, a, time);
     m.flash.visible = a.flashShow > 0 && a.alive;
-    // Enemy nametags only through a clear line of sight; teammates always.
-    if (a.alive) m.tag.visible = a.team === p.team || (lineClear(p.x, eyeY(p), p.z, a.x, a.y + 2, a.z) && !smokeBlocks(p.x, p.z, a.x, a.z));
+    // Teammates' nametags always show; an enemy's only within TAG_RANGE and through a clear line of sight.
+    if (a.alive) m.tag.visible = a.team === p.team || (Math.hypot(a.x - p.x, a.z - p.z) < TAG_RANGE && lineClear(p.x, eyeY(p), p.z, a.x, a.y + 2, a.z) && !smokeBlocks(p.x, p.z, a.x, a.z));
   }
 }
 

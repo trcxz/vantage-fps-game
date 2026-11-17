@@ -2,7 +2,6 @@
 // toward a wish direction, weak air control, jump, crouch, collision slide against map boxes.
 import { MOVE, WEAPONS } from './config.js';
 import { moveXZ, BOXES } from './map.js';
-import { G } from './state.js';
 import { clamp } from './util.js';
 
 // Height of the floor under (x,z) for an actor of radius r: top of any box it is standing over
@@ -43,14 +42,16 @@ export function moveActor(a, wx, wz, speedMul, wantJump, dt) {
   if (a.y <= fl) { a.y = fl; a.vy = 0; a.onGround = true; } else if (a.y > fl + 0.02) a.onGround = false;
 }
 
-// Keyboard state -> wish direction in world space for a yaw (0 faces -Z).
-export function wishFromKeys(keys, yaw) {
+// Keyboard state -> wish direction in world space for a yaw (0 faces -Z). Writes the shared `wish`.
+const wish = [0, 0];
+function wishFromKeys(keys, yaw) {
   const f = (keys.w ? 1 : 0) - (keys.s ? 1 : 0), r = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
-  if (!f && !r) return [0, 0];
+  wish[0] = wish[1] = 0;
+  if (!f && !r) return;
   const sin = Math.sin(yaw), cos = Math.cos(yaw);
-  let x = -sin * f + cos * r, z = -cos * f - sin * r;
+  const x = -sin * f + cos * r, z = -cos * f - sin * r;
   const l = Math.hypot(x, z);
-  return [x / l, z / l];
+  wish[0] = x / l; wish[1] = z / l;
 }
 
 // Player update from input: look, recoil recovery, movement. Frozen during the buy countdown
@@ -65,7 +66,7 @@ export function stepPlayer(p, keys, dt) {
   p.pitch = clamp(p.pitch + p.kickP * k, -1.45, 1.45);
   p.yaw += p.kickY * k;
   p.kickP -= p.kickP * k; p.kickY -= p.kickY * k;
-  const [wx, wz] = p.alive ? wishFromKeys(keys, p.yaw) : [0, 0];
+  wishFromKeys(keys, p.yaw);
   const w = WEAPONS[p.cur].speed * (p.scope ? 0.6 : 1);
-  moveActor(p, wx, wz, w, p.alive && keys.space, dt);
+  moveActor(p, p.alive ? wish[0] : 0, p.alive ? wish[1] : 0, w, p.alive && keys.space, dt);
 }

@@ -1,7 +1,7 @@
 // bots.js: bot brains. Each bot follows a goal list from its team's round plan along the waypoint
 // graph, sees enemies by line-of-sight (field of view, range, smoke), reacts after a delay,
 // turns at a limited speed, shoots with inaccuracy, hears gunfire and reports contact on the radio.
-import { G, pushRadio, isAttacker } from './state.js';
+import { G, pushRadio } from './state.js';
 import { clamp, rand, randRange, angleDiff, turnToward, yawTo } from './util.js';
 import { NODES, nearestNode, findPath, lineClear, callout } from './map.js';
 import { eyeY, fire, curW, startReload, selectWeapon, bestWeapon } from './actors.js';
@@ -12,7 +12,7 @@ export function makeBrain(skill) {
   return {
     skill,                       // 0.6 .. 1.0: scales reaction time, turn speed and accuracy
     goals: [], path: [], pi: 0, holdT: 0, watch: 0,
-    target: null, seenFor: 0, lastSeen: null, stuckT: 0, lastX: 0, lastZ: 0,
+    target: null, seenFor: 0, lastSeen: { x: 0, z: 0, t: -99 }, stuckT: 0, lastX: 0, lastZ: 0,
     strafeT: 0, strafeDir: 1, lookT: 0, lookYaw: 0, callT: 0, nadeT: 0, crouchT: 0,
   };
 }
@@ -61,11 +61,10 @@ export function stepBot(a, dt) {
   if (seen) {
     if (seen !== b.target) { b.target = seen; b.seenFor = 0; }
     b.seenFor += dt;
-    b.lastSeen = { x: seen.x, z: seen.z, t: G.time };
+    b.lastSeen.x = seen.x; b.lastSeen.z = seen.z; b.lastSeen.t = G.time;
     if (b.callT < G.time) {
       b.callT = G.time + 6;
       pushRadio(a.team, a.name, `Contact, ${callout(seen.x, seen.z)}!`);
-      if (!isAttacker(a)) G.contact = { site: callout(seen.x, seen.z), t: G.time };
     }
   } else {
     b.target = null; b.seenFor = 0;
@@ -108,7 +107,7 @@ export function stepBot(a, dt) {
       aimYaw = b.watch;
     } else if (atGoal) {
       if (b.goals.length > 1) { b.goals.shift(); b.path = []; }
-      else { aimYaw = b.watch + Math.sin(G.time * 0.7 + a.id) * 0.5; mul = 0; if (b.lastSeen && G.time - b.lastSeen.t < 4) aimYaw = yawTo(b.lastSeen.x - a.x, b.lastSeen.z - a.z); }
+      else { aimYaw = b.watch + Math.sin(G.time * 0.7 + a.id) * 0.5; mul = 0; if (G.time - b.lastSeen.t < 4) aimYaw = yawTo(b.lastSeen.x - a.x, b.lastSeen.z - a.z); }
       // the last goal is a hold position; plant happens in round.js using a.use
       if (b.goals.length === 1 && a.hasBomb) a.use = true;
     } else if (b.path.length) {
@@ -119,7 +118,7 @@ export function stepBot(a, dt) {
     }
     // unstick: no progress while trying to move -> replan and sidestep
     if (Math.hypot(a.x - b.lastX, a.z - b.lastZ) < 0.03 && (wx || wz)) b.stuckT += dt; else { b.stuckT = 0; b.lastX = a.x; b.lastZ = a.z; }
-    if (b.stuckT > 1.2) { b.stuckT = 0; b.path = []; wx = -wz; wz = wx; }
+    if (b.stuckT > 1.2) { b.stuckT = 0; b.path = []; const t = wx; wx = -wz; wz = t; }
   }
 
   // --- turning (limited speed) ---

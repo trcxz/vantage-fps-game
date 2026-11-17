@@ -7,7 +7,7 @@ import { flat, part } from './models.js';
 const MAX_TRACERS = 40, MAX_SPARKS = 40, MAX_PUFFS = 60;
 let scene, T;
 const tracers = [], sparks = [], puffs = [], nadeMeshes = [], booms = [];
-let bomb, bombLight;
+let bomb, bombLight, nadeMats;
 
 export function initEffects(sc, textures) {
   scene = sc; T = textures;
@@ -29,9 +29,11 @@ export function initEffects(sc, textures) {
     s.visible = false; s.userData = { smoke: null, ox: 0, oy: 0, oz: 0, ph: 0, sz: 0 };
     scene.add(s); puffs.push(s);
   }
-  // grenade bodies: one small box each kind, tinted
+  // grenade bodies: a pool of small boxes sharing one material per kind
+  nadeMats = { frag: flat(0x4a5a3a, 0.5, 0.3), flash: flat(0xd0d0d8, 0.5, 0.3), smoke: flat(0x9a9aa4, 0.5, 0.3) };
+  const ng = new THREE.BoxGeometry(0.12, 0.16, 0.12);
   for (let i = 0; i < 6; i++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.12), flat(0x4a5a3a, 0.5, 0.3));
+    const m = new THREE.Mesh(ng, nadeMats.frag);
     m.visible = false; scene.add(m); nadeMeshes.push(m);
   }
   for (let i = 0; i < 4; i++) {
@@ -99,7 +101,7 @@ export function updateEffects(dt, time) {
     m.visible = !!n;
     if (n) {
       m.position.set(n.x, n.y, n.z); m.rotation.set(n.spin, n.spin * 0.7, 0);
-      m.material = flat(n.kind === 'frag' ? 0x4a5a3a : n.kind === 'flash' ? 0xd0d0d8 : 0x9a9aa4, 0.5, 0.3);
+      m.material = nadeMats[n.kind];
     }
   }
   // smoke: each cloud owns up to 12 puffs, billboarded sprites that billow outward for 1.5 s

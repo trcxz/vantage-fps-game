@@ -1,7 +1,7 @@
 // hud.js: DOM + 2D canvas overlay. Creates every element once, then updateHud() only changes
 // text/styles. Reads G; never writes gameplay state (buying goes through the onBuy callback).
-import { G } from './state.js';
-import { TEAMS, SHOP, WEAPONS, NADES } from './config.js';
+import { G, bombProgress } from './state.js';
+import { TEAMS, SHOP, WEAPONS, NADES, NADE_ORDER } from './config.js';
 import { BOXES, SITES } from './map.js';
 import { fmtTime } from './util.js';
 import { curW } from './actors.js';
@@ -53,14 +53,17 @@ export function buildHud(root, onBuy) {
   $.buy.hidden = $.score.hidden = $.prog.hidden = true;
 }
 
-// Weapon label with the key used to select it.
-const slotText = (a) => {
-  const s = [];
-  const mk = (k, id) => id && s.push(a.cur === id ? `<u>${k}:${WEAPONS[id].name}</u>` : `${k}:${WEAPONS[id].name}`);
-  mk(1, a.primary); mk(2, a.pistol); mk(3, 'knife');
-  const n = Object.keys(a.nades).filter((k) => a.nades[k] > 0).map((k) => `${NADES[k].name}${a.nades[k] > 1 ? 'x' + a.nades[k] : ''}${a.nadeSel === k ? '*' : ''}`);
-  return s.join(' ') + (n.length ? '<br>' + n.join(' ') : '');
-};
+// Weapon labels with the key that selects each, then the grenades carried. Built as one string.
+const slotLabel = (a, k, id) => (!id ? '' : a.cur === id ? `<u>${k}:${WEAPONS[id].name}</u> ` : `${k}:${WEAPONS[id].name} `);
+function slotText(a) {
+  let s = slotLabel(a, 1, a.primary) + slotLabel(a, 2, a.pistol) + slotLabel(a, 3, 'knife'), sep = '<br>';
+  for (const k of NADE_ORDER) {
+    if (a.nades[k] <= 0) continue;
+    s += `${sep}${NADES[k].name}${a.nades[k] > 1 ? 'x' + a.nades[k] : ''}${a.nadeSel === k ? '*' : ''}`;
+    sep = ' ';
+  }
+  return s;
+}
 
 // Buy menu: rebuilt only when what it shows changes (signature), so clicks are never lost mid-frame.
 function drawBuy(p) {
@@ -168,13 +171,11 @@ export function updateHud(p, spread) {
   $.note.textContent = G.time - G.ui.noteT < 2 && G.ui.note ? G.ui.note : '';
 
   // plant / defuse progress
-  const B = G.bomb;
-  const planting = B.state === 'carried' && B.plantP > 0 && B.user === p;
-  const defusing = B.state === 'planted' && B.defuseP > 0 && B.user === p;
-  $.prog.hidden = !(planting || defusing);
-  if (!$.prog.hidden) {
-    document.getElementById('plbl').textContent = planting ? 'PLANTING' : 'DEFUSING';
-    document.getElementById('pbar').style.width = (planting ? B.plantP : B.defuseP) * 100 + '%';
+  const prog = bombProgress(p);
+  $.prog.hidden = prog <= 0;
+  if (prog > 0) {
+    document.getElementById('plbl').textContent = G.bomb.state === 'carried' ? 'PLANTING' : 'DEFUSING';
+    document.getElementById('pbar').style.width = prog * 100 + '%';
   }
 
   $.buy.hidden = !G.ui.buy;

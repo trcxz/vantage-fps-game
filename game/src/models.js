@@ -22,9 +22,8 @@ export function part(parent, w, h, d, x, y, z, mat, shadow = true) {
 
 const GUN_DARK = 0x23262b, GUN_MID = 0x3d4249, GUN_WOOD = 0x6b4a2c, GUN_STEEL = 0x8b929b;
 
-// Weapon built along -Z (muzzle at negative z), origin at the grip. Returns {g, muzzle}.
-// `scale` shrinks the same model for the world (held by a bot).
-export function buildGun(id) {
+// Weapon built along -Z (muzzle at negative z), origin at the grip. Returns {g, muzzleZ}.
+function buildGun(id) {
   const g = new THREE.Group();
   const dark = flat(GUN_DARK, 0.5, 0.5), mid = flat(GUN_MID, 0.55, 0.4), wood = flat(GUN_WOOD, 0.8, 0), steel = flat(GUN_STEEL, 0.35, 0.7);
   let muzzleZ = -0.4;
@@ -73,7 +72,7 @@ export function buildGun(id) {
 }
 
 // Yellow muzzle flash: two crossed planes + glow sprite; toggled by showing/hiding.
-export function buildFlash(T) {
+function buildFlash(T) {
   const g = new THREE.Group();
   const mat = new THREE.SpriteMaterial({ map: T.flash, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   const s = new THREE.Sprite(mat);
@@ -118,17 +117,15 @@ export function buildHumanoid(team, name, T) {
   tag.position.set(0, 2.25, 0);
   tag.renderOrder = 10;
   root.add(tag);
-  return { root, body, legL, legR, armL, armR, gunHolder, flash, tag, gunId: '', gunMuzzle: -0.5 };
+  return { root, body, legL, legR, armL, armR, gunHolder, flash, tag, gunId: '' };
 }
 
-// Swap the gun a humanoid holds (cached by weapon id).
-const gunCache = {};
+// Swap the gun a humanoid holds; does nothing while the weapon id is unchanged.
 export function setHeldGun(h, id) {
   if (h.gunId === id) return;
   h.gunId = id;
   while (h.gunHolder.children.length) h.gunHolder.remove(h.gunHolder.children[0]);
   const { g, muzzleZ } = buildGun(id);
-  gunCache[id] = muzzleZ;
   h.gunHolder.add(g);
   h.flash.position.set(0.12, 1.2, -0.38 + muzzleZ);
 }

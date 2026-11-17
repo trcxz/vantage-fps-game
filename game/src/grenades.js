@@ -3,7 +3,7 @@
 import { G } from './state.js';
 import { NADES } from './config.js';
 import { BOXES, lineClear } from './map.js';
-import { applyDamage, eyeY, hooks } from './actors.js';
+import { applyDamage, eyeY } from './actors.js';
 import { angleDiff, yawTo } from './util.js';
 
 export const nadeHooks = { boom: () => {} };

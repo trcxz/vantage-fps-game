@@ -2,13 +2,13 @@
 // firing, spread, hit detection against head and body, damage with armour, death.
 // Player and bots use exactly the same fire()/applyDamage() so the rules are identical.
 import { G, pushFeed, pushRadio } from './state.js';
-import { WEAPONS, MOVE, NAMES } from './config.js';
-import { rand, randRange, TAU, yawTo } from './util.js';
+import { WEAPONS, MOVE, NAMES, LEG_ZONE, LEG_MULT } from './config.js';
+import { rand, randRange, TAU } from './util.js';
 import { rayWorld, callout } from './map.js';
 
 // Side effects (sound, tracers, blood) are wired by main.js; the rules here stay pure.
 export const hooks = {
-  shot: () => {}, hit: () => {}, died: () => {}, reload: () => {}, empty: () => {}, step: () => {},
+  shot: () => {}, hit: () => {}, died: () => {}, reload: () => {}, empty: () => {},
 };
 
 export function makeActor(team, slot, isPlayer) {
@@ -20,7 +20,7 @@ export function makeActor(team, slot, isPlayer) {
     primary: '', pistol: 'pike', cur: 'pike',
     mag: {}, reserve: {}, nades: { frag: 0, flash: 0, smoke: 0 }, nadeSel: 'frag',
     cool: 0, reloadT: 0, bloom: 0, kickP: 0, kickY: 0, switchT: 0, flashT: 0, scope: false,
-    model: null, bot: null, boot: false,
+    model: null, bot: null,
   };
 }
 
@@ -65,8 +65,9 @@ export function spreadOf(a) {
 }
 
 // ---- hit geometry ----
-const hitRes = { t: 2, actor: null, head: false };
+const hitRes = { t: 2, actor: null, head: false, leg: false };
 // Segment A->B (B = A + D) against an actor's body cylinder and head sphere. Fills hitRes if closer.
+// The lowest LEG_ZONE share of the cylinder counts as a leg hit.
 function hitActor(t_max, ax, ay, az, dx, dy, dz, o) {
   const top = o.crouch ? 1.38 : 1.8, r = 0.32;
   // head sphere (centre near the top, radius 0.19)
@@ -76,7 +77,7 @@ function hitActor(t_max, ax, ay, az, dx, dy, dz, o) {
   const disc = b2 * b2 - a2 * c2;
   if (disc >= 0) {
     const t = (-b2 - Math.sqrt(disc)) / a2;
-    if (t >= 0 && t < hitRes.t && t < t_max) { hitRes.t = t; hitRes.actor = o; hitRes.head = true; }
+    if (t >= 0 && t < hitRes.t && t < t_max) { hitRes.t = t; hitRes.actor = o; hitRes.head = true; hitRes.leg = false; }
   }
   // body cylinder (vertical), checked in the xz plane then clipped by height
   const ex = ax - o.x, ez = az - o.z;
@@ -88,15 +89,15 @@ function hitActor(t_max, ax, ay, az, dx, dy, dz, o) {
   const t = (-qb - Math.sqrt(dd)) / qa;
   if (t < 0 || t >= hitRes.t || t >= t_max) return;
   const y = ay + dy * t;
-  if (y >= o.y && y <= o.y + top - 0.3) { hitRes.t = t; hitRes.actor = o; hitRes.head = false; }
+  if (y >= o.y && y <= o.y + top - 0.3) { hitRes.t = t; hitRes.actor = o; hitRes.head = false; hitRes.leg = y < o.y + top * LEG_ZONE; }
 }
 
-// Fire one ray from the eye along a direction. Returns {t, actor, head} (shared object, read at once).
-export function castBullet(shooter, dirx, diry, dirz, range) {
+// Fire one ray from the eye along a direction. Returns {t, actor, head, leg} (shared object, read at once).
+function castBullet(shooter, dirx, diry, dirz, range) {
   const ax = shooter.x, ay = eyeY(shooter), az = shooter.z;
   const bx = ax + dirx * range, by = ay + diry * range, bz = az + dirz * range;
   const tw = rayWorld(ax, ay, az, bx, by, bz);
-  hitRes.t = tw; hitRes.actor = null; hitRes.head = false;
+  hitRes.t = tw; hitRes.actor = null; hitRes.head = hitRes.leg = false;
   const dx = bx - ax, dy = by - ay, dz = bz - az;
   for (const o of G.actors) {
     if (!o.alive || o === shooter || o.team === shooter.team) continue;
@@ -105,7 +106,7 @@ export function castBullet(shooter, dirx, diry, dirz, range) {
   return hitRes;
 }
 
-// Damage with falloff, head multiplier and armour. Returns true when the target died.
+// Damage (already scaled by zone and falloff) through armour. Returns true when the target died.
 export function applyDamage(target, attacker, dmg, head, wid, fromX, fromZ) {
   if (!target.alive) return false;
   const w = WEAPONS[wid];
@@ -123,7 +124,7 @@ export function applyDamage(target, attacker, dmg, head, wid, fromX, fromZ) {
   return false;
 }
 
-export function kill(v, k, wid, head) {
+function kill(v, k, wid, head) {
   v.hp = 0; v.alive = false; v.deaths++; v.hasBomb = false;
   if (k && k !== v) { k.kills++; k.roundKills++; k.money = Math.min(12000, k.money + (WEAPONS[wid] ? WEAPONS[wid].reward : 300)); }
   pushFeed(k || v, v, WEAPONS[wid] ? WEAPONS[wid].name : wid, head);
@@ -140,8 +141,6 @@ export function fire(a, yawJitter = 0, pitchJitter = 0) {
   if (!w.melee) a.mag[a.cur]--;
   const cone = spreadOf(a);
   const eye = eyeY(a);
-  const cp = Math.cos(a.pitch + pitchJitter), sp = Math.sin(a.pitch + pitchJitter);
-  let any = null;
   const n = w.melee ? 1 : w.pellets;
   for (let i = 0; i < n; i++) {
     // random point in the cone (uniform disc), applied to yaw/pitch
@@ -155,8 +154,7 @@ export function fire(a, yawJitter = 0, pitchJitter = 0) {
     hooks.shot(a, tx, ty, tz, res.actor, i === 0);
     if (res.actor) {
       const mult = 0.5 ** (dist / (w.falloff * 3));
-      applyDamage(res.actor, a, w.dmg * (res.head ? w.head : 1) * Math.max(0.35, mult), res.head, a.cur, a.x, a.z);
-      any = res.actor;
+      applyDamage(res.actor, a, w.dmg * (res.head ? w.head : res.leg ? LEG_MULT : 1) * Math.max(0.35, mult), res.head, a.cur, a.x, a.z);
     }
   }
   a.bloom = Math.min(w.bloomMax, a.bloom + w.bloom);
@@ -180,5 +178,3 @@ export function tickWeapon(a, dt) {
     }
   }
 }
-
-export const aimYawTo = (a, tx, tz) => yawTo(tx - a.x, tz - a.z);

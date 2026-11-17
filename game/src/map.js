@@ -50,13 +50,11 @@ export const NODES = [
   ['c1', -5, -32], ['c2', 5, -32], ['c3', 0, -28], ['c4', -7, -26], ['c5', 7, -26],
   ['ca', -11, -18], ['cb', 11, -18], ['pw', -8, 20], ['pe', 8, 20],
 ].map(([id, x, z], i) => ({ id, i, x, z, adj: [] }));
-export const NODE = Object.fromEntries(NODES.map((n) => [n.id, n]));
 
 export const SPAWN = {
   south: [[-6, 35], [-3, 35], [0, 35], [3, 35], [6, 35]],
   north: [[-6, -35], [-3, -35], [0, -35], [3, -35], [6, -35]],
 };
-export const BOMB_NODE = 'ts2';
 
 // ---- collision for walkers (circle against boxes, per-axis slide) ----
 function pushOut(p, r) {
@@ -81,7 +79,7 @@ export function moveXZ(p, dx, dz, r) {
   p.x += dx; pushOut(p, r);
   p.z += dz; pushOut(p, r);
 }
-export function blockedAt(x, z, r) {
+function blockedAt(x, z, r) {
   for (const o of BOXES) {
     const cx = clamp(x, o.x1, o.x2), cz = clamp(z, o.z1, o.z2);
     if ((x - cx) ** 2 + (z - cz) ** 2 < r * r) return true;
@@ -91,9 +89,12 @@ export function blockedAt(x, z, r) {
 
 // ---- rays ----
 // Slab test of a segment against one box in 3D. Returns entry fraction 0..1 or -1.
+// Called for every box on every bullet and sight check, so the axis arrays are reused.
+const lo = [0, 0, 0], hi = [0, 0, 0], a = [0, 0, 0], d = [0, 0, 0];
 function segBox(o, ax, ay, az, dx, dy, dz) {
   let t0 = 0, t1 = 1;
-  const lo = [o.x1, 0, o.z1], hi = [o.x2, o.h, o.z2], a = [ax, ay, az], d = [dx, dy, dz];
+  lo[0] = o.x1; lo[2] = o.z1; hi[0] = o.x2; hi[1] = o.h; hi[2] = o.z2;
+  a[0] = ax; a[1] = ay; a[2] = az; d[0] = dx; d[1] = dy; d[2] = dz;
   for (let i = 0; i < 3; i++) {
     if (Math.abs(d[i]) < 1e-9) {
       if (a[i] < lo[i] || a[i] > hi[i]) return -1;
@@ -121,17 +122,18 @@ export function rayWorld(ax, ay, az, bx, by, bz) {
 export const lineClear = (ax, ay, az, bx, by, bz) => rayWorld(ax, ay, az, bx, by, bz) >= 1;
 
 // ---- pathing ----
-function walkClear(a, c, r) {
-  const steps = Math.ceil(Math.hypot(c.x - a.x, c.z - a.z) / 0.8);
+// Is the straight walk from (ax,az) to (cx,cz) free for a circle of radius r?
+function walkClear(ax, az, cx, cz, r) {
+  const steps = Math.ceil(Math.hypot(cx - ax, cz - az) / 0.8);
   for (let s = 0; s <= steps; s++) {
     const t = s / steps;
-    if (blockedAt(a.x + (c.x - a.x) * t, a.z + (c.z - a.z) * t, r)) return false;
+    if (blockedAt(ax + (cx - ax) * t, az + (cz - az) * t, r)) return false;
   }
   return true;
 }
 for (const n of NODES) {
   for (const m of NODES) {
-    if (n !== m && Math.hypot(n.x - m.x, n.z - m.z) < 20 && walkClear(n, m, 0.5)) n.adj.push(m.i);
+    if (n !== m && Math.hypot(n.x - m.x, n.z - m.z) < 20 && walkClear(n.x, n.z, m.x, m.z, 0.5)) n.adj.push(m.i);
   }
 }
 
@@ -139,27 +141,26 @@ export function nearestNode(x, z) {
   let best = 0, bd = 1e9;
   for (const n of NODES) {
     const d = (n.x - x) ** 2 + (n.z - z) ** 2;
-    if (d < bd && walkClear({ x, z }, n, 0.3)) { bd = d; best = n.i; }
+    if (d < bd && walkClear(x, z, n.x, n.z, 0.3)) { bd = d; best = n.i; }
     else if (d < bd * 0.2) { bd = d; best = n.i; }
   }
   return best;
 }
 
 // Dijkstra over the graph. Returns node indices from `from` to `to`, inclusive.
-const distBuf = new Float32Array(NODES.length), prevBuf = new Int16Array(NODES.length);
+// Scratch buffers are module-level and reused; only the returned path is a new array (bots keep it).
+const distBuf = new Float32Array(NODES.length), prevBuf = new Int16Array(NODES.length), doneBuf = new Uint8Array(NODES.length);
 export function findPath(from, to) {
-  distBuf.fill(1e9); prevBuf.fill(-1); distBuf[from] = 0;
-  const open = [from], done = new Set();
-  while (open.length) {
-    let bi = 0;
-    for (let i = 1; i < open.length; i++) if (distBuf[open[i]] < distBuf[open[bi]]) bi = i;
-    const u = open.splice(bi, 1)[0];
-    if (u === to) break;
-    if (done.has(u)) continue;
-    done.add(u);
+  distBuf.fill(1e9); prevBuf.fill(-1); doneBuf.fill(0); distBuf[from] = 0;
+  for (;;) {
+    // nearest unsettled node (linear scan: the graph has ~40 nodes)
+    let u = -1;
+    for (let i = 0; i < NODES.length; i++) if (!doneBuf[i] && distBuf[i] < 1e9 && (u < 0 || distBuf[i] < distBuf[u])) u = i;
+    if (u < 0 || u === to) break;
+    doneBuf[u] = 1;
     for (const v of NODES[u].adj) {
       const nd = distBuf[u] + Math.hypot(NODES[u].x - NODES[v].x, NODES[u].z - NODES[v].z);
-      if (nd < distBuf[v]) { distBuf[v] = nd; prevBuf[v] = u; open.push(v); }
+      if (nd < distBuf[v]) { distBuf[v] = nd; prevBuf[v] = u; }
     }
   }
   const path = [];
