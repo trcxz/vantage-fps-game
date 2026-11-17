@@ -14,6 +14,7 @@ function shadowPlane(T) {
   const m = new THREE.Mesh(blobGeo, blobMat);
   m.rotation.x = -Math.PI / 2;
   m.position.y = 0.012;   // under the bomb-site plates (0.02), above the ground (0)
+  m.renderOrder = -1;     // draw before the transparent site plates so they stay on top
   return m;
 }
 export function flat(color, rough = 0.7, metal = 0.1) {
